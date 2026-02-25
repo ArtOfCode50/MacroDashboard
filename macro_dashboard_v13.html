@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MACRO STRESS MONITOR</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #080b0f;
+    --surface: #0d1117;
+    --border:  #1a2030;
+    --dim:     #1e2840;
+    --text:    #c8d6e8;
+    --muted:   #4a5568;
+    --accent:  #00d4ff;
+    --green:   #00e676;
+    --red:     #ff3d57;
+    --orange:  #ffaa00;
+    --yellow:  #ffe066;
+    --mono:    'Share Tech Mono', monospace;
+    --display: 'Bebas Neue', sans-serif;
+    --body:    'DM Sans', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--body); min-height:100vh; }
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .wrapper { position:relative; z-index:1; max-width:1440px; margin:0 auto; padding:24px; }
+
+  /* HEADER */
+  header {
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom:24px; padding-bottom:18px; border-bottom:1px solid var(--border);
+  }
+  .h-title { font-family:var(--display); font-size:clamp(26px,4vw,52px); letter-spacing:5px; color:#fff; line-height:1; }
+  .h-sub   { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:2px; margin-top:5px; }
+  .h-right { text-align:right; }
+  #clock   { font-family:var(--mono); font-size:13px; color:var(--accent); }
+  #status-line { font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:3px; }
+
+  /* STRESS BANNER */
+  .banner {
+    background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:22px 28px; margin-bottom:20px;
+    display:flex; align-items:center; gap:32px; position:relative; overflow:hidden;
+    transition: border-color 0.8s ease;
+  }
+  .banner::before {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+    background:var(--sc, #333); transition:background 1s;
+  }
+  .score-block { text-align:center; min-width:100px; }
+  .score-num {
+    font-family:var(--display); font-size:76px; line-height:1;
+    color:var(--sc, var(--muted)); transition:color 1s;
+  }
+  .score-lbl { font-family:var(--mono); font-size:9px; letter-spacing:3px; color:var(--muted); }
+  .vline { width:1px; height:70px; background:var(--border); flex-shrink:0; }
+  .banner-info { flex:1; }
+  .banner-status { font-family:var(--display); font-size:28px; letter-spacing:3px; color:var(--sc, var(--muted)); transition:color 1s; }
+  .banner-desc { font-size:13px; color:var(--muted); margin-top:6px; line-height:1.7; max-width:540px; }
+  .banner-desc strong { color:var(--text); font-weight:500; }
+  .bar-wrap { flex:1; max-width:260px; }
+  .bar-track { height:6px; background:var(--dim); border-radius:3px; overflow:hidden; margin-bottom:6px; }
+  .bar-fill  { height:100%; border-radius:3px; background:var(--sc, #333); transition:width 1.2s ease, background 1s; }
+  .bar-lbls  { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--muted); }
+
+  /* SECTION TITLE */
+  .sec { font-family:var(--mono); font-size:10px; letter-spacing:3px; color:var(--muted);
+         margin:24px 0 12px; padding-bottom:7px; border-bottom:1px solid var(--border); }
+
+  /* GRIDS */
+  .g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
+  .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+  .g2 { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:14px; }
+
+  /* DATA CARD */
+  .dcard {
+    background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:18px; position:relative; overflow:hidden;
+    transition: border-color 0.4s;
+  }
+  .dcard::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background:var(--cc, var(--border)); transition:background 0.5s;
+  }
+  .dcard.firing { border-color:var(--red); animation:flash 1.4s ease infinite; }
+  @keyframes flash { 0%,100%{border-color:var(--border)} 50%{border-color:var(--red)} }
+
+  .dc-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .dc-name { font-family:var(--display); font-size:17px; letter-spacing:2px; color:#fff; }
+  .dc-sub  { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:1px; margin-top:2px; }
+  .dc-badge {
+    font-family:var(--mono); font-size:9px; letter-spacing:1px;
+    padding:3px 7px; border-radius:2px; background:var(--dim); color:var(--muted);
+    transition:all 0.4s;
+  }
+  .dc-badge.fomo   { background:rgba(255,61,87,0.15);  color:var(--red);   border:1px solid rgba(255,61,87,0.3); }
+  .dc-badge.panic  { background:rgba(0,230,118,0.15);  color:var(--green); border:1px solid rgba(0,230,118,0.3); }
+  .dc-badge.alert  { background:rgba(255,170,0,0.15);  color:var(--orange);border:1px solid rgba(255,170,0,0.3); }
+
+  .dc-price { font-family:var(--mono); font-size:24px; color:#fff; margin-bottom:3px; }
+  .dc-chg   { font-family:var(--mono); font-size:11px; margin-bottom:12px; }
+  .dc-chg.up   { color:var(--green); }
+  .dc-chg.dn   { color:var(--red); }
+  .dc-chg.flat { color:var(--muted); }
+
+  /* sparkline */
+  .spark { height:38px; margin-bottom:10px; }
+  .spark svg { width:100%; height:100%; }
+
+  /* score meter */
+  .meter-row { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--muted); margin-bottom:4px; }
+  .meter-track { height:3px; background:var(--dim); border-radius:2px; overflow:hidden; }
+  .meter-fill  { height:100%; border-radius:2px; transition:width 0.8s ease, background 0.5s; }
+
+  /* WIDGET CARD (TradingView) */
+  .wcard { background:var(--surface); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+  .wcard-head {
+    padding:12px 16px 9px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:flex-start;
+  }
+  .wcard-name { font-family:var(--display); font-size:15px; letter-spacing:2px; color:#fff; }
+  .wcard-sub  { font-family:var(--mono); font-size:9px; color:var(--muted); margin-top:2px; }
+  .wcard-role { font-family:var(--mono); font-size:8px; letter-spacing:1px; padding:3px 7px; border-radius:2px; background:var(--dim); color:var(--muted); }
+
+  /* NARRATIVE */
+  .ncard { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:22px; }
+  .ncard-title { font-family:var(--display); font-size:16px; letter-spacing:2px; color:#fff; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .pdot { width:8px; height:8px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; flex-shrink:0; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.7)} }
+  .ncard p { font-size:13px; line-height:1.8; color:var(--muted); margin-bottom:10px; }
+  .ncard p strong { color:var(--text); font-weight:500; }
+  .ncard ul { list-style:none; margin-top:4px; }
+  .ncard ul li {
+    font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--muted);
+    padding:7px 0; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .ncard ul li:last-child { border-bottom:none; }
+  .tag { display:inline-block; font-family:var(--mono); font-size:9px; letter-spacing:1px;
+         padding:3px 8px; border-radius:2px; border:1px solid var(--border); color:var(--muted); margin:4px 3px 0 0; }
+  .tag.a { border-color:var(--accent); color:var(--accent); background:rgba(0,212,255,0.05); }
+  .tag.w { border-color:var(--orange); color:var(--orange); background:rgba(255,170,0,0.05); }
+  .tag.d { border-color:var(--red);    color:var(--red);    background:rgba(255,61,87,0.05); }
+
+  /* Loading shimmer */
+  .shimmer {
+    background:linear-gradient(90deg,var(--dim) 25%,var(--border) 50%,var(--dim) 75%);
+    background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:2px;
+    color:transparent !important;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* POLYMARKET SECTION */
+  .pm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+  @media(max-width:900px) { .pm-grid { grid-template-columns:1fr 1fr; } }
+  @media(max-width:580px) { .pm-grid { grid-template-columns:1fr; } }
+
+  .pm-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:16px; position:relative; overflow:hidden;
+  }
+  .pm-card::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background:var(--pm-color, var(--border));
+  }
+  .pm-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .pm-title { font-size:12px; color:var(--text); line-height:1.4; font-weight:500; flex:1; padding-right:10px; }
+  .pm-badge { font-family:var(--mono); font-size:9px; letter-spacing:1px; padding:3px 7px; border-radius:2px; flex-shrink:0; }
+  .pm-pct { font-family:var(--display); font-size:40px; line-height:1; margin-bottom:4px; }
+  .pm-outcome { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:1px; margin-bottom:10px; }
+  .pm-bar-track { height:5px; background:var(--dim); border-radius:3px; overflow:hidden; margin-bottom:8px; }
+  .pm-bar-fill { height:100%; border-radius:3px; transition:width 0.8s ease; }
+  .pm-vol { font-family:var(--mono); font-size:9px; color:var(--muted); }
+  .pm-stress-contrib { font-family:var(--mono); font-size:9px; margin-top:6px; padding-top:6px; border-top:1px solid var(--border); }
+
+  /* Polymarket section header accent */
+  .sec-pm { color:var(--purple, #b57bee); border-bottom-color:rgba(181,123,238,0.3); }
+
+  footer { margin-top:28px; padding-top:18px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  footer p { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:1px; }
+  .btn { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--accent); background:none; border:1px solid var(--accent); padding:7px 18px; border-radius:2px; cursor:pointer; transition:all 0.2s; }
+  .btn:hover { background:rgba(0,212,255,0.08); }
+
+  /* fade-up on load */
+  .fu { animation:fadeUp 0.5s ease both; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+  @media(max-width:1000px) { .g4,.g3{grid-template-columns:1fr 1fr} .g2{grid-template-columns:1fr} .banner{flex-wrap:wrap} .bar-wrap{max-width:100%;width:100%} }
+  @media(max-width:580px)  { .g4,.g3,.g2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header class="fu">
+    <div>
+      <div class="h-title">MACRO STRESS MONITOR</div>
+      <div class="h-sub">COMMODITIES · YIELDS · GEOPOLITICAL SIGNALS · DOOMBERG FRAMEWORK</div>
+    </div>
+    <div class="h-right">
+      <div id="clock">--:--:--</div>
+      <div id="status-line">LOADING DATA...</div>
+    </div>
+  </header>
+
+  <!-- STRESS BANNER -->
+  <div class="banner fu" id="banner" style="--sc:#333">
+    <div class="score-block">
+      <div class="score-num shimmer" id="sNum">—</div>
+      <div class="score-lbl">STRESS / 10</div>
+    </div>
+    <div class="vline"></div>
+    <div class="banner-info">
+      <div class="banner-status shimmer" id="sStatus">LOADING</div>
+      <div class="banner-desc" id="sDesc">Fetching live market data from multiple sources...</div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-track"><div class="bar-fill" id="barFill" style="width:0%"></div></div>
+      <div class="bar-lbls"><span>CALM</span><span>ELEVATED</span><span>CRISIS</span></div>
+    </div>
+  </div>
+
+  <!-- COMMODITY DATA CARDS -->
+  <div class="sec">📊 COMMODITIES — LIVE DATA + SIGNALS</div>
+  <div class="g4" id="commodity-grid"></div>
+
+  <!-- YIELDS + VIX + DXY DATA CARDS -->
+  <div class="sec">📈 YIELDS · VOLATILITY · DOLLAR</div>
+  <div class="g3" id="macro-grid"></div>
+
+  <!-- TRADINGVIEW CHARTS -->
+  <div class="sec">📉 LIVE CHARTS — TRADINGVIEW</div>
+  <div class="g4">
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">GOLD</div><div class="wcard-sub">XAU/USD · 1 MONTH</div></div><div class="wcard-role">FEAR GAUGE</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"CAPITALCOM:GOLD","width":"100%","height":180,"locale":"en","dateRange":"1M","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">COPPER</div><div class="wcard-sub">DR. COPPER · 1 MONTH</div></div><div class="wcard-role">ECON HEALTH</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"CAPITALCOM:COPPER","width":"100%","height":180,"locale":"en","dateRange":"1M","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">WTI OIL</div><div class="wcard-sub">CRUDE · 1 MONTH</div></div><div class="wcard-role">GEO SIGNAL</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"CAPITALCOM:OIL_CRUDE","width":"100%","height":180,"locale":"en","dateRange":"1M","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">BRENT</div><div class="wcard-sub">GLOBAL BENCHMARK · 1 MONTH</div></div><div class="wcard-role">GEO PREMIUM</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"CAPITALCOM:OIL_BRENT","width":"100%","height":180,"locale":"en","dateRange":"1M","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+  </div>
+  <div class="g3">
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">10Y YIELD</div><div class="wcard-sub">US TREASURY · 1 YEAR</div></div><div class="wcard-role">KEY RATE</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"FRED:DGS10","width":"100%","height":180,"locale":"en","dateRange":"1Y","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">YIELD CURVE</div><div class="wcard-sub">10Y MINUS 2Y · 1 YEAR</div></div><div class="wcard-role">RECESSION IND.</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"FRED:T10Y2Y","width":"100%","height":180,"locale":"en","dateRange":"1Y","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+    <div class="wcard">
+      <div class="wcard-head"><div><div class="wcard-name">VIX</div><div class="wcard-sub">FEAR INDEX · 1 MONTH</div></div><div class="wcard-role">FEAR GAUGE</div></div>
+      <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+      {"symbol":"CAPITALCOM:VIX","width":"100%","height":180,"locale":"en","dateRange":"1M","colorTheme":"dark","isTransparent":true,"autosize":false}
+      </script></div>
+    </div>
+  </div>
+
+  <!-- NARRATIVE -->
+  <div class="sec">🧠 INTERPRETATION</div>
+  <div class="g2">
+    <div class="ncard">
+      <div class="ncard-title"><div class="pdot"></div>MACRO NARRATIVE</div>
+      <div id="narrative-body"><p style="color:var(--muted)">Calculating from live data...</p></div>
+    </div>
+    <div class="ncard">
+      <div class="ncard-title"><div class="pdot" style="background:var(--orange)"></div>DOOMBERG FRAMEWORK</div>
+      <p><strong>Key spreads to watch daily:</strong> The Brent/WTI spread widens when global supply routes are disrupted — often the first signal of a geopolitical event, days before headlines. Above $5 warrants attention. Above $8 is a strong signal.</p>
+      <p><strong>The geopolitical risk premium:</strong> At peace, oil trades mid-$50s. Whatever Brent trades above that is the market's live estimate of conflict risk. Watch whether that premium is expanding or contracting.</p>
+      <p><strong>The yield curve trap:</strong> The recession doesn't arrive during the inversion — it arrives as the curve re-steepens back toward zero. That re-steepening is historically the most dangerous moment.</p>
+      <div style="margin-top:12px">
+        <span class="tag d">BRENT/WTI > $8 = ALERT</span>
+        <span class="tag w">CURVE RE-STEEPENING = DANGER</span>
+        <span class="tag w">OIL + GOLD BOTH UP = WATCH</span>
+        <span class="tag a">COPPER DOWN = SLOW DOWN</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- POLYMARKET SIGNALS -->
+  <div class="sec sec-pm">🎲 POLYMARKET PREDICTION SIGNALS — CROWD-SOURCED GEOPOLITICAL PROBABILITIES</div>
+  <div class="pm-grid" id="pm-grid">
+    <div class="pm-card" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:2px;min-height:120px">
+      LOADING PREDICTION MARKETS...
+    </div>
+  </div>
+
+  <footer>
+    <p>⚠ NOT INVESTMENT ADVICE · DATA: YAHOO FINANCE VIA CORS PROXY · POLYMARKET GAMMA API · CHARTS: TRADINGVIEW · AUTO-REFRESH: 5 MIN</p>
+    <button class="btn" onclick="loadAll()">↻ REFRESH</button>
+  </footer>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────
+// Multiple CORS proxies - try each in sequence until one works
+const PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithFallback(url) {
+  for (const proxyFn of PROXIES) {
+    try {
+      const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(7000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!text || text.length < 10) continue;
+      return JSON.parse(text);
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+const COMMODITIES = [
+  { id:'gold',   name:'GOLD',   sub:'FEAR GAUGE · XAU/USD', ticker:'GC=F',   unit:'$', dec:1, color:'#ffd700' },
+  { id:'silver', name:'SILVER', sub:'RISK IND. · XAG/USD',  ticker:'SI=F',   unit:'$', dec:2, color:'#c0c0c0' },
+  { id:'copper', name:'COPPER', sub:'ECON HEALTH · HG',     ticker:'HG=F',   unit:'$', dec:3, color:'#b87333' },
+  { id:'oil',    name:'WTI OIL',sub:'GEO SIGNAL · WTI',     ticker:'CL=F',   unit:'$', dec:2, color:'#00d4ff' },
+  { id:'brent',  name:'BRENT',  sub:'GEO PREMIUM · GLOBAL', ticker:'BZ=F',   unit:'$', dec:2, color:'#4fc3f7', hidden:true },
+];
+const MACRO = [
+  { id:'us10y', name:'10Y YIELD', sub:'TREASURY YIELD',  ticker:'%5ETNX',  unit:'%', dec:2, color:'#00d4ff' },
+  { id:'us2y',  name:'2Y YIELD',  sub:'SHORT RATE',      ticker:'%5EIRX',  unit:'%', dec:2, color:'#80deea', hidden:true },
+  { id:'vix',   name:'VIX',       sub:'VOLATILITY INDEX', ticker:'%5EVIX',  unit:'',  dec:2, color:'#ff3d57' },
+  { id:'dxy',   name:'US DOLLAR', sub:'DXY INDEX',        ticker:'DX-Y.NYB',unit:'',  dec:2, color:'#ffd700' },
+];
+
+const D = {}; // store fetched data
+
+// ─────────────────────────────────────────
+// CLOCK
+// ─────────────────────────────────────────
+function tick() {
+  const t = new Date().toLocaleTimeString('en-US',{timeZone:'America/Edmonton',hour12:false});
+  document.getElementById('clock').textContent = t + ' MT';
+}
+setInterval(tick, 1000); tick();
+
+// ─────────────────────────────────────────
+// FETCH
+// ─────────────────────────────────────────
+async function fetchYF(ticker) {
+  try {
+    const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=10d`;
+    const json = await fetchWithFallback(url);
+    if (!json) return null;
+    const r    = json.chart.result[0];
+    const q    = r.indicators.quote[0];
+    const closes = q.close.filter(v => v != null);
+    const opens  = q.open.filter(v => v != null);
+    if (closes.length < 2) return null;
+    const price  = closes.at(-1);
+    const prev   = closes.at(-2);
+    return {
+      price, prev,
+      change:    price - prev,
+      changePct: (price - prev) / prev * 100,
+      history:   closes.slice(-20),
+    };
+  } catch(e) { return null; }
+}
+
+// ─────────────────────────────────────────
+// SPARKLINE
+// ─────────────────────────────────────────
+function spark(history, color) {
+  if (!history || history.length < 2) return '';
+  const W=200, H=38, P=2;
+  const mn = Math.min(...history), mx = Math.max(...history);
+  const rng = mx - mn || 1;
+  const pts = history.map((v,i) => {
+    const x = P + i/(history.length-1)*(W-P*2);
+    const y = H - P - (v-mn)/rng*(H-P*2);
+    return `${x},${y}`;
+  }).join(' ');
+  const lx = P + (history.length-1)/(history.length-1)*(W-P*2);
+  const ly = H - P - (history.at(-1)-mn)/rng*(H-P*2);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8"/>
+    <circle cx="${lx}" cy="${ly}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+// ─────────────────────────────────────────
+// SIGNAL CALC
+// ─────────────────────────────────────────
+function signals(data) {
+  if (!data) return { fomo:0, panic:0, rsi:50 };
+  const { price, history, change } = data;
+  const isUp = change >= 0;
+
+  // RSI
+  let g=0,l=0,gc=0,lc=0;
+  for (let i=1;i<history.length;i++) {
+    const d=history[i]-history[i-1];
+    if(d>0){g+=d;gc++}else{l+=Math.abs(d);lc++}
+  }
+  const ag=gc?g/gc:0, al=lc?l/lc:0.001;
+  const rsi = 100 - 100/(1+ag/al);
+
+  // Bollinger
+  const ma  = history.reduce((a,b)=>a+b,0)/history.length;
+  const std = Math.sqrt(history.reduce((s,v)=>s+Math.pow(v-ma,2),0)/history.length);
+  const bbU = ma+std*2, bbL = ma-std*2;
+
+  // ROC
+  const roc = data.changePct;
+
+  // Volume proxy: today's move vs avg move
+  const avgMove = history.slice(1).reduce((s,v,i)=>s+Math.abs(v-history[i]),0)/(history.length-1)||0.001;
+  const bigDay  = Math.abs(change) > avgMove*2;
+
+  const fomoSigs  = [rsi>75, bigDay&&isUp,  roc>1.5,  price>bbU, data.changePct>1.0];
+  const panicSigs = [rsi<25, bigDay&&!isUp, roc<-1.5, price<bbL, data.changePct<-1.0];
+
+  return {
+    fomo:  fomoSigs.filter(Boolean).length,
+    panic: panicSigs.filter(Boolean).length,
+    rsi:   Math.round(rsi),
+  };
+}
+
+// ─────────────────────────────────────────
+// RENDER COMMODITY CARDS
+// ─────────────────────────────────────────
+function renderCommodities() {
+  const grid = document.getElementById('commodity-grid');
+  grid.innerHTML = '';
+  COMMODITIES.forEach((inst, i) => {
+    const d   = D[inst.id];
+    const sig = signals(d);
+    const isFOMO  = sig.fomo  >= 3;
+    const isPanic = sig.panic >= 3;
+    const scoreVal = Math.max(sig.fomo, sig.panic);
+    const scoreColor = isFOMO ? 'var(--red)' : isPanic ? 'var(--green)' : 'var(--muted)';
+    const badgeClass = isFOMO ? 'fomo' : isPanic ? 'panic' : '';
+    const badgeText  = isFOMO ? 'FOMO' : isPanic ? 'PANIC' : 'NEUTRAL';
+
+    const price  = d ? `${inst.unit}${d.price.toFixed(inst.dec)}` : '---';
+    const chgAbs = d ? Math.abs(d.change).toFixed(inst.dec) : '0';
+    const chgPct = d ? d.changePct.toFixed(2) : '0.00';
+    const isUp   = d ? d.change >= 0 : true;
+    const chgCls = !d ? 'flat' : isUp ? 'up' : 'dn';
+    const arrow  = !d ? '' : isUp ? '▲' : '▼';
+
+    const div = document.createElement('div');
+    div.className = `dcard fu ${isFOMO ? 'firing' : ''}`;
+    div.style.cssText = `--cc:${inst.color}; animation-delay:${i*0.06}s`;
+    div.innerHTML = `
+      <div class="dc-top">
+        <div><div class="dc-name">${inst.name}</div><div class="dc-sub">${inst.sub}</div></div>
+        <div class="dc-badge ${badgeClass}">${badgeText}</div>
+      </div>
+      <div class="dc-price ${d?'':'shimmer'}">${price}</div>
+      <div class="dc-chg ${chgCls}">${arrow} ${inst.unit}${chgAbs} (${chgPct}%)</div>
+      <div class="spark">${spark(d?.history, inst.color)}</div>
+      <div class="meter-row"><span>SIGNAL ${scoreVal}/5</span><span>RSI ${sig.rsi}</span></div>
+      <div class="meter-track">
+        <div class="meter-fill" style="width:${scoreVal/5*100}%;background:${scoreColor}"></div>
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+// ─────────────────────────────────────────
+// RENDER MACRO CARDS (yields / vix / dxy)
+// ─────────────────────────────────────────
+function renderMacro() {
+  const grid = document.getElementById('macro-grid');
+  grid.innerHTML = '';
+
+  MACRO.filter(inst => !inst.hidden).forEach((inst, i) => {
+    const d = D[inst.id];
+    const price  = d ? `${d.price.toFixed(inst.dec)}${inst.unit}` : '---';
+    const chgPct = d ? d.changePct.toFixed(2) : '0.00';
+    const isUp   = d ? d.change >= 0 : true;
+    const chgCls = !d ? 'flat' : isUp ? 'up' : 'dn';
+    const arrow  = !d ? '' : isUp ? '▲' : '▼';
+
+    // Special badge logic per instrument
+    let badge = 'NORMAL', badgeCls = '';
+    if (d) {
+      if (inst.id === 'vix') {
+        if (d.price > 35)      { badge='CRISIS';  badgeCls='fomo'; }
+        else if (d.price > 25) { badge='FEAR';    badgeCls='alert'; }
+        else if (d.price > 20) { badge='CAUTION'; badgeCls='alert'; }
+        else                   { badge='CALM';    badgeCls=''; }
+      } else if (inst.id === 'us10y') {
+        badge = d.price > 5 ? 'HIGH' : d.price > 4 ? 'ELEVATED' : 'NORMAL';
+        badgeCls = d.price > 5 ? 'fomo' : d.price > 4 ? 'alert' : '';
+      } else if (inst.id === 'dxy') {
+        badge = d.price > 105 ? 'STRONG' : d.price > 100 ? 'ELEVATED' : 'NEUTRAL';
+        badgeCls = d.price > 105 ? 'alert' : '';
+      }
+    }
+
+    const div = document.createElement('div');
+    div.className = 'dcard fu';
+    div.style.cssText = `--cc:${inst.color}; animation-delay:${i*0.07}s`;
+    div.innerHTML = `
+      <div class="dc-top">
+        <div><div class="dc-name">${inst.name}</div><div class="dc-sub">${inst.sub}</div></div>
+        <div class="dc-badge ${badgeCls}">${badge}</div>
+      </div>
+      <div class="dc-price ${d?'':'shimmer'}">${price}</div>
+      <div class="dc-chg ${chgCls}">${arrow} ${Math.abs(chgPct)}%</div>
+      <div class="spark">${spark(d?.history, inst.color)}</div>`;
+    grid.appendChild(div);
+  });
+
+  // Gold/Silver ratio card
+  const gd2 = D['gold'], sd2 = D['silver'];
+  const ratio = gd2 && sd2 ? (gd2.price / sd2.price).toFixed(1) : '---';
+  const highRatio = parseFloat(ratio) > 80;
+  const extremeRatio = parseFloat(ratio) > 90;
+  const ratioDiv = document.createElement('div');
+  ratioDiv.className = 'dcard fu';
+  ratioDiv.style.cssText = '--cc:#ffd700; animation-delay:0.21s';
+  ratioDiv.innerHTML = `
+    <div class="dc-top">
+      <div><div class="dc-name">AU/AG RATIO</div><div class="dc-sub">GOLD ÷ SILVER · FEAR PROXY</div></div>
+      <div class="dc-badge ${extremeRatio?'fomo':highRatio?'alert':''}">${extremeRatio?'EXTREME FEAR':highRatio?'FEAR':'NORMAL'}</div>
+    </div>
+    <div class="dc-price" style="color:${extremeRatio?'var(--red)':highRatio?'var(--orange)':'#fff'}">${ratio}</div>
+    <div class="dc-chg flat">${extremeRatio?'▲ EXTREME — CRISIS SIGNAL':highRatio?'▲ HIGH — FEAR DOMINANT':'◆ BELOW 80 — NEUTRAL'}</div>
+    <div class="spark" style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--muted)">
+      >90 CRISIS · >80 FEAR · &lt;70 CALM · &lt;60 RISK-ON
+    </div>`;
+  document.getElementById('macro-grid').appendChild(ratioDiv);
+
+  // Brent/WTI spread card
+  const bwd = D['brent'], wid = D['oil'];
+  const bwtVal = bwd && wid ? (bwd.price - wid.price) : null;
+  const bwtStr = bwtVal !== null ? `$${bwtVal.toFixed(2)}` : '---';
+  const bwtAlert = bwtVal !== null && bwtVal > 8;
+  const bwtWarn  = bwtVal !== null && bwtVal > 5;
+  const bwtInv   = bwtVal !== null && bwtVal < 0;
+  const bwtBadge = bwtAlert ? 'EXTREME' : bwtWarn ? 'ELEVATED' : bwtInv ? 'INVERTED' : 'NORMAL';
+  const bwtClass = bwtAlert ? 'fomo' : (bwtWarn || bwtInv) ? 'alert' : '';
+  const bwtColor = bwtAlert ? 'var(--red)' : bwtWarn ? 'var(--orange)' : bwtInv ? 'var(--red)' : '#fff';
+  const bwtDesc  = bwtAlert ? '⚠ EXTREME — SUPPLY CRISIS' : bwtWarn ? '⚠ ELEVATED — WATCH SUPPLY' : bwtInv ? '▼ INVERTED — US STRESS' : '◆ NORMAL $2-5 RANGE';
+  const spreadDiv = document.createElement('div');
+  spreadDiv.className = 'dcard fu';
+  spreadDiv.style.cssText = '--cc:#4fc3f7; animation-delay:0.28s';
+  spreadDiv.innerHTML = `
+    <div class="dc-top">
+      <div><div class="dc-name">BRENT/WTI</div><div class="dc-sub">SPREAD · GEO SUPPLY SIGNAL</div></div>
+      <div class="dc-badge ${bwtClass}">${bwtBadge}</div>
+    </div>
+    <div class="dc-price" style="color:${bwtColor}">${bwtStr}</div>
+    <div class="dc-chg flat">${bwtDesc}</div>
+    <div class="spark" style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--muted)">
+      >$8 CRISIS · >$5 WARN · $2-5 NORMAL · &lt;0 INVERTED
+    </div>`;
+  document.getElementById('macro-grid').appendChild(spreadDiv);
+
+  // Yield curve card
+  const ycVal = D['yield_curve'] ? D['yield_curve'].value : null;
+  const ycStr = ycVal !== null ? `${ycVal >= 0 ? '+' : ''}${ycVal.toFixed(2)}%` : '---';
+  const ycInv  = ycVal !== null && ycVal < 0;
+  const ycTrap = ycVal !== null && ycVal > -0.5 && ycVal < 0.5;
+  const ycBadge = ycInv ? 'INVERTED' : ycTrap ? 'RE-STEEPEN' : 'NORMAL';
+  const ycClass = ycInv ? 'alert' : ycTrap ? 'fomo' : '';
+  const ycColor = ycInv ? 'var(--orange)' : ycTrap ? 'var(--red)' : 'var(--green)';
+  const ycDesc  = ycInv ? '⚠ INVERTED — RECESSION RISK' : ycTrap ? '⚠ RE-STEEPENING — WATCH CLOSELY' : '◆ POSITIVE — NORMAL';
+  const ycDiv = document.createElement('div');
+  ycDiv.className = 'dcard fu';
+  ycDiv.style.cssText = '--cc:#00e676; animation-delay:0.35s';
+  ycDiv.innerHTML = `
+    <div class="dc-top">
+      <div><div class="dc-name">YIELD CURVE</div><div class="dc-sub">10Y MINUS 2Y · RECESSION IND.</div></div>
+      <div class="dc-badge ${ycClass}">${ycBadge}</div>
+    </div>
+    <div class="dc-price" style="color:${ycColor}">${ycStr}</div>
+    <div class="dc-chg flat">${ycDesc}</div>
+    <div class="spark" style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--muted)">
+      INVERTED → RECESSION RISK · RE-STEEPEN → RECESSION ARRIVING
+    </div>`;
+  document.getElementById('macro-grid').appendChild(ycDiv);
+}
+
+// ─────────────────────────────────────────
+// STRESS SCORE
+// ─────────────────────────────────────────
+function computeStress() {
+  let score = 0;
+  const reasons = [], tags = [];
+
+  const gd  = D['gold'],   od = D['oil'],  cd = D['copper'];
+  const sd  = D['silver'], bd = D['brent'];
+  const y10 = D['us10y'],  vix = D['vix'], dxy = D['dxy'];
+  const bwtSpread  = D['brent_wti_spread'];
+  const yldCurve   = D['yield_curve'];
+  const auAgRatio  = D['au_ag_ratio'];
+
+  // ── INDIVIDUAL PRICE SIGNALS ──────────────────────────
+  // Gold rising = fear bid
+  if (gd && gd.changePct > 0.5)  { score+=1.5; reasons.push('Gold rising'); tags.push({t:'GOLD RISING',c:'w'}); }
+
+  // Oil spiking = geopolitical pressure
+  if (od && od.changePct > 1.0)  { score+=2.0; reasons.push('Oil spiking'); tags.push({t:'OIL SPIKE',c:'d'}); }
+  if (od && od.changePct < -2.0) { score+=0.5; reasons.push('Oil collapsing'); tags.push({t:'OIL COLLAPSE',c:'w'}); }
+
+  // Copper falling = economic slowdown signal
+  if (cd && cd.changePct < -0.5) { score+=1.5; reasons.push('Copper falling'); tags.push({t:'COPPER WEAK',c:'w'}); }
+  if (cd && cd.changePct < -1.5) { score+=0.5; reasons.push('Copper sharp drop'); } // extra for sharp moves
+
+  // VIX = market fear
+  if (vix) {
+    if      (vix.price > 35) { score+=3.0; reasons.push('VIX crisis level'); tags.push({t:'VIX CRISIS',c:'d'}); }
+    else if (vix.price > 25) { score+=2.0; reasons.push('VIX elevated');     tags.push({t:'VIX HIGH',c:'d'}); }
+    else if (vix.price > 20) { score+=1.0; reasons.push('VIX rising');       tags.push({t:'VIX CAUTION',c:'w'}); }
+  }
+
+  // ── SPREAD SIGNALS (Doomberg framework) ───────────────
+  // Brent/WTI spread — widens on global supply disruption / geopolitical stress
+  if (bwtSpread) {
+    const sp = bwtSpread.value;
+    if      (sp > 8)  { score+=2.0; reasons.push(`Brent/WTI spread $${sp.toFixed(2)} — extreme`); tags.push({t:`BRENT/WTI $${sp.toFixed(1)} ⚠`,c:'d'}); }
+    else if (sp > 5)  { score+=1.0; reasons.push(`Brent/WTI spread $${sp.toFixed(2)} — elevated`); tags.push({t:`BRENT/WTI $${sp.toFixed(1)}`,c:'w'}); }
+    else if (sp < 0)  { score+=1.5; reasons.push('Brent/WTI inverted — US supply stress'); tags.push({t:'SPREAD INVERTED',c:'d'}); }
+  }
+
+  // Yield curve — inverted = recession risk; re-steepening after inversion = recession arriving
+  if (yldCurve) {
+    const cv = yldCurve.value;
+    if (cv < 0)       { score+=1.0; reasons.push(`Yield curve inverted (${cv.toFixed(2)}%)`); tags.push({t:'CURVE INVERTED',c:'w'}); }
+    // Re-steepening trap: curve was negative and is recovering toward zero = recession arriving
+    if (cv > -0.5 && cv < 0.5 && y10 && y10.changePct > 0) {
+      score+=1.0; reasons.push('Curve re-steepening — recession may be arriving'); tags.push({t:'CURVE TRAP',c:'d'});
+    }
+  }
+
+  // Gold/Silver ratio — above 80 = fear dominant, above 90 = extreme fear
+  if (auAgRatio) {
+    const r = auAgRatio.value;
+    if      (r > 90) { score+=1.5; reasons.push(`Gold/Silver ratio ${r.toFixed(0)} — extreme fear`); tags.push({t:`AU/AG ${r.toFixed(0)} EXTREME`,c:'d'}); }
+    else if (r > 80) { score+=0.5; reasons.push(`Gold/Silver ratio ${r.toFixed(0)} — fear elevated`); tags.push({t:`AU/AG ${r.toFixed(0)}`,c:'w'}); }
+  }
+
+  // ── COMBINATION SIGNALS (most powerful) ───────────────
+  // Gold + Dollar both rising = genuine flight to safety (not just inflation)
+  if (gd && dxy && gd.changePct > 0.5 && dxy.changePct > 0.3) {
+    score+=1.0; reasons.push('Gold + Dollar rising together'); tags.push({t:'FLIGHT TO SAFETY',c:'d'});
+  }
+
+  // Gold + Oil + Copper all moving = macro regime shift
+  if (gd && od && cd && gd.changePct > 0.5 && od.changePct > 0.5 && cd.changePct < -0.5) {
+    score+=1.0; reasons.push('Classic geo-stress pattern: gold↑ oil↑ copper↓'); tags.push({t:'GEO STRESS PATTERN',c:'d'});
+  }
+
+  // Oil spike + wide Brent/WTI spread = supply disruption confirmed
+  if (od && od.changePct > 1.0 && bwtSpread && bwtSpread.value > 5) {
+    score+=1.0; reasons.push('Oil spike confirmed by Brent/WTI spread'); tags.push({t:'SPREAD CONFIRMS OIL',c:'d'});
+  }
+
+  score = Math.min(Math.round(score*10)/10, 10);
+
+  // Add Polymarket contribution if available
+  const pmContrib = typeof computePMStressTotal === 'function' ? computePMStressTotal() : 0;
+  if (pmContrib > 1.5) { score += Math.min(pmContrib, 3.0); reasons.push(`Prediction markets pricing risk (${pmContrib.toFixed(1)} pts)`); tags.push({t:'POLYMARKET SIGNAL',c:'d'}); }
+  else if (pmContrib > 0.5) { score += pmContrib * 0.5; reasons.push(`Prediction markets mildly elevated`); tags.push({t:'PM ELEVATED',c:'w'}); }
+  score = Math.min(Math.round(score*10)/10, 10);
+
+  // Build breakdown string for description
+  const topReasons = reasons.slice(0,4).join(' · ');
+
+  let status, desc, color;
+  if (score >= 8) {
+    status='EXTREME STRESS'; color='var(--red)';
+    desc=`<strong>Crisis-level signals firing across multiple independent indicators.</strong> Historical analogs: COVID March 2020, Russia-Ukraine Feb 2022. ${topReasons}.`;
+  } else if (score >= 6) {
+    status='HIGH STRESS'; color='var(--red)';
+    desc=`<strong>Significant stress building.</strong> ${topReasons}. Major event risk elevated — monitor for acceleration.`;
+  } else if (score >= 4) {
+    status='ELEVATED'; color='var(--orange)';
+    desc=`<strong>Moderate stress signals present.</strong> ${topReasons || 'Markets showing tension'}. Not crisis level — active monitoring warranted.`;
+  } else if (score >= 2) {
+    status='MILD CAUTION'; color='var(--yellow)';
+    desc=`<strong>Low-level signals present.</strong> ${topReasons || 'Background noise only'}. No major action required — stay aware.`;
+  } else {
+    status='CALM'; color='var(--green)';
+    desc=`<strong>Markets broadly calm.</strong> No significant stress signals across commodities, spreads, yields, or volatility. Risk-on environment appears intact.`;
+  }
+
+  return { score, status, desc, color, tags, reasons };
+}
+
+function renderStress() {
+  const { score, status, desc, color, tags } = computeStress();
+  const banner = document.getElementById('banner');
+  banner.style.setProperty('--sc', color);
+  const sNum = document.getElementById('sNum');
+  sNum.textContent = score.toFixed(1);
+  sNum.classList.remove('shimmer');
+  sNum.style.color = color;
+  const sStatus = document.getElementById('sStatus');
+  sStatus.textContent = status;
+  sStatus.classList.remove('shimmer');
+  sStatus.style.color = color;
+  document.getElementById('sDesc').innerHTML = desc;
+  document.getElementById('barFill').style.width = (score/10*100)+'%';
+  document.getElementById('barFill').style.background = color;
+  if (score >= 6) banner.style.borderColor = color;
+}
+
+// ─────────────────────────────────────────
+// NARRATIVE
+// ─────────────────────────────────────────
+function renderNarrative() {
+  const gd=D['gold'], od=D['oil'], cd=D['copper'];
+  const goldUp=gd&&gd.changePct>0.3, oilUp=od&&od.changePct>0.3;
+  const copperUp=cd&&cd.changePct>0.3, copperDn=cd&&cd.changePct<-0.3;
+
+  let html='', activeTags=[];
+
+  if (goldUp && oilUp && copperDn) {
+    html=`<p><strong>Geopolitical Fear + Economic Slowdown.</strong> Gold and oil rising while copper falls is the classic stress signal Doomberg watches most closely. The market is pricing in conflict risk while simultaneously warning of weakening economic activity.</p>
+    <p>Check the Brent/WTI spread — if it is widening simultaneously, something significant may be developing in global supply routes before it appears in headlines.</p>`;
+    activeTags=[{t:'GEO FEAR',c:'d'},{t:'ECON WEAK',c:'w'},{t:'WATCH OIL SPREADS',c:'w'}];
+  } else if (goldUp && oilUp && copperUp) {
+    html=`<p><strong>Inflationary Growth Surge.</strong> All three rising together is not a fear trade — it is a global demand and inflation signal. Hard assets are being bid up across the board.</p>
+    <p>Watch for central bank response. Real yields (10Y minus inflation) are likely falling, which historically is the most commodity-bullish environment possible.</p>`;
+    activeTags=[{t:'INFLATION',c:'w'},{t:'HARD ASSETS',c:'a'},{t:'WATCH REAL YIELDS',c:'w'}];
+  } else if (goldUp && !oilUp && copperDn) {
+    html=`<p><strong>Classic Flight to Safety.</strong> Gold rising while copper falls is the textbook recession fear trade. Capital is rotating into safe havens and out of growth-sensitive assets.</p>
+    <p>If the yield curve is simultaneously inverted, recession probability is historically very high. The question is timing — the recession typically arrives as the curve re-steepens, not during the inversion itself.</p>`;
+    activeTags=[{t:'SAFE HAVEN',c:'d'},{t:'RECESSION RISK',c:'d'},{t:'WATCH CURVE',c:'w'}];
+  } else if (!goldUp && oilUp) {
+    html=`<p><strong>Supply-Side Oil Move.</strong> Oil moving without gold suggests a supply disruption rather than broad geopolitical fear. OPEC decisions, pipeline issues, or US inventory draws are more likely culprits than conflict.</p>
+    <p>Check whether Brent is outperforming WTI — if so, it is a global seaborne supply issue, not a domestic US story.</p>`;
+    activeTags=[{t:'SUPPLY SIDE',c:'w'},{t:'CHECK SPREADS',c:'a'},{t:'OPEC WATCH',c:'w'}];
+  } else if (!goldUp && !oilUp && copperUp) {
+    html=`<p><strong>Risk-On, Growth Expansion.</strong> Copper rising without fear in gold or oil is the cleanest growth signal. Dr. Copper is telling you global industrial demand is accelerating.</p>
+    <p>This is typically the best environment for risk assets. Low volatility + rising copper historically precedes equity outperformance.</p>`;
+    activeTags=[{t:'RISK-ON',c:'a'},{t:'GROWTH',c:'a'},{t:'EQUITIES FAVORABLE',c:'a'}];
+  } else {
+    html=`<p><strong>Mixed or Neutral Signal.</strong> No strong directional agreement across the commodity complex today. Low conviction environment — could be accumulation before a move or genuine calm.</p>
+    <p>In neutral periods, watch the VIX level and whether the yield curve is flattening or steepening for early warning of the next directional shift.</p>`;
+    activeTags=[{t:'NEUTRAL',c:'a'},{t:'WATCH VIX',c:'w'},{t:'WATCH CURVE',c:'w'}];
+  }
+
+  html += `<div style="margin-top:10px">${activeTags.map(t=>`<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>`;
+  document.getElementById('narrative-body').innerHTML = html;
+}
+
+// ─────────────────────────────────────────
+// MAIN LOAD
+// ─────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('status-line').textContent = 'FETCHING LIVE DATA...';
+
+  const allInstruments = [...COMMODITIES, ...MACRO];
+  await Promise.allSettled(
+    allInstruments.map(inst =>
+      fetchYF(inst.ticker).then(d => { if(d) D[inst.id] = d; })
+    )
+  );
+  // Compute derived spread values
+  if (D['brent'] && D['oil']) {
+    D['brent_wti_spread'] = { value: D['brent'].price - D['oil'].price };
+  }
+  if (D['us10y'] && D['us2y']) {
+    // IRX is 13-week T-bill rate (proxy for 2Y), already in %
+    D['yield_curve'] = { value: D['us10y'].price - D['us2y'].price };
+  }
+  if (D['gold'] && D['silver']) {
+    D['au_ag_ratio'] = { value: D['gold'].price / D['silver'].price };
+  }
+
+  renderCommodities();
+  renderMacro();
+  renderStress();
+  renderNarrative();
+
+  const loaded = Object.keys(D).filter(k => !['brent_wti_spread','yield_curve','au_ag_ratio'].includes(k)).length;
+  const total  = allInstruments.length;
+  const bwt    = D['brent_wti_spread'] ? `BRENT/WTI $${D['brent_wti_spread'].value.toFixed(2)}` : '';
+  const yc     = D['yield_curve']      ? `CURVE ${D['yield_curve'].value >= 0 ? '+' : ''}${D['yield_curve'].value.toFixed(2)}%` : '';
+  const t = new Date().toLocaleTimeString('en-US',{timeZone:'America/Edmonton',hour12:false});
+  const extras = [bwt, yc].filter(Boolean).join(' · ');
+  document.getElementById('status-line').textContent =
+    `UPDATED ${t} MT · ${loaded}/${total} FEEDS · ${extras}`;
+}
+
+// ─────────────────────────────────────────
+// POLYMARKET CONFIG
+// Hard-coded slugs from live polymarket.com URLs (verified Feb 2026)
+// Plus dynamic fallback that fetches top geo/macro markets by volume
+// ─────────────────────────────────────────
+
+// Keyword patterns to identify stress-relevant markets dynamically
+const PM_STRESS_KEYWORDS = [
+  { words:['iran','strike','war','attack'],    weight:2.5, invert:false, color:'#ff3d57', category:'IRAN' },
+  { words:['russia','ukraine','ceasefire'],    weight:1.5, invert:true,  color:'#00e676', category:'RUSSIA/UKRAINE' },
+  { words:['recession','gdp'],                weight:2.0, invert:false, color:'#ffaa00', category:'RECESSION' },
+  { words:['taiwan','china','invade'],        weight:3.0, invert:false, color:'#ff3d57', category:'TAIWAN' },
+  { words:['fed','rate cut','fomc'],          weight:0.8, invert:true,  color:'#00d4ff', category:'FED' },
+  { words:['oil','opec','crude'],             weight:1.5, invert:false, color:'#4fc3f7', category:'OIL' },
+  { words:['khamenei','supreme leader'],      weight:2.0, invert:false, color:'#ff3d57', category:'IRAN' },
+  { words:['israel','hamas','hezbollah'],     weight:2.0, invert:false, color:'#ff3d57', category:'MIDDLE EAST' },
+];
+
+function classifyMarket(title) {
+  const t = title.toLowerCase();
+  for (const rule of PM_STRESS_KEYWORDS) {
+    if (rule.words.some(w => t.includes(w))) return rule;
+  }
+  return null;
+}
+
+let PM_DATA = [];
+
+async function fetchPolymarket(slug) {
+  try {
+    const url = `https://gamma-api.polymarket.com/events?slug=${slug}&limit=1`;
+    const json = await fetchWithFallback(url); // reuse existing proxy chain
+    if (!json || !Array.isArray(json) || json.length === 0) return null;
+    return parsePolymarketEvent(json[0]);
+  } catch(e) { return null; }
+}
+
+function parsePolymarketEvent(event) {
+  // Handle both event objects and raw market objects
+  const markets = event.markets || [];
+  const market  = markets[0] || event; // fallback to event itself if it's a raw market
+  let prices, outcomes;
+  try { prices = JSON.parse(market.outcomePrices || '[0.5,0.5]'); } catch(e) { prices = [0.5,0.5]; }
+  try { outcomes = JSON.parse(market.outcomes || '["Yes","No"]'); } catch(e) { outcomes = ['Yes','No']; }
+  const title = event.title || market.question || event.question || event.slug || '';
+  if (!title) return null;
+  return {
+    title,
+    slug:     event.slug || market.slug || '',
+    yesPrice: parseFloat(prices[0]) || 0.5,
+    volume:   parseFloat(event.volume || market.volume || market.volume24hr || 0),
+    outcomes,
+  };
+}
+
+async function fetchTopPolymarketGeo() {
+  // Fetch top active markets by volume — routed through CORS proxy
+  const urls = [
+    'https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=50&order=volume&ascending=false',
+  ];
+  const allMarkets = [];
+  for (const url of urls) {
+    try {
+      const data = await fetchWithFallback(url);
+      if (Array.isArray(data)) allMarkets.push(...data);
+    } catch(e) { continue; }
+  }
+  // Convert raw markets to event-like objects for parsePolymarketEvent
+  return allMarkets.map(m => ({
+    title:    m.question || m.description || '',
+    slug:     m.slug || '',
+    volume:   m.volume || m.volume24hr || 0,
+    markets:  [m],
+  }));
+}
+
+function computePMStressContrib(market, data) {
+  if (!data) return 0;
+  const pct = data.yesPrice * 100;
+  // For markets where YES = bad, higher YES% = more stress
+  // For inverted markets (YES = good), higher YES% = less stress
+  const effectivePct = market.invert ? (100 - pct) : pct;
+  return (effectivePct / 100) * market.weight;
+}
+
+function renderPolymarket() {
+  const grid = document.getElementById('pm-grid');
+  grid.innerHTML = '';
+
+  if (PM_DATA.length === 0) {
+    grid.innerHTML = '<div class="pm-card" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:2px;min-height:120px;grid-column:1/-1">NO PREDICTION MARKET DATA AVAILABLE</div>';
+    return;
+  }
+
+  PM_DATA.forEach(({ market, data }) => {
+    if (!data) return;
+    const pct = Math.round(data.yesPrice * 100);
+    const contrib = computePMStressContrib(market, data);
+
+    // Color logic: for normal markets, red = high yes; for inverted, green = high yes
+    let cardColor, pctColor, badgeText, badgeStyle;
+    const effectivePct = market.invert ? (100 - pct) : pct;
+    if (effectivePct > 70)      { cardColor='var(--red)';    pctColor='var(--red)';    badgeText='HIGH RISK'; badgeStyle='background:rgba(255,61,87,0.15);color:var(--red);border:1px solid rgba(255,61,87,0.3)'; }
+    else if (effectivePct > 40) { cardColor='var(--orange)'; pctColor='var(--orange)'; badgeText='ELEVATED';  badgeStyle='background:rgba(255,170,0,0.15);color:var(--orange);border:1px solid rgba(255,170,0,0.3)'; }
+    else if (effectivePct > 20) { cardColor='var(--yellow)'; pctColor='var(--yellow)'; badgeText='MODERATE';  badgeStyle='background:rgba(255,224,102,0.1);color:var(--yellow);border:1px solid rgba(255,224,102,0.2)'; }
+    else                        { cardColor='var(--green)';  pctColor='var(--green)';  badgeText='LOW RISK';  badgeStyle='background:rgba(0,230,118,0.1);color:var(--green);border:1px solid rgba(0,230,118,0.2)'; }
+
+    const vol = data.volume > 1e6 ? `$${(data.volume/1e6).toFixed(1)}M` :
+                data.volume > 1e3 ? `$${(data.volume/1e3).toFixed(0)}K` : `$${data.volume.toFixed(0)}`;
+
+    const stressSign = contrib > 0 ? `+${contrib.toFixed(2)}` : contrib.toFixed(2);
+    const stressColor = contrib > 0.5 ? 'var(--red)' : contrib > 0.2 ? 'var(--orange)' : 'var(--muted)';
+
+    const div = document.createElement('div');
+    div.className = 'pm-card fu';
+    div.style.cssText = `--pm-color:${cardColor}`;
+    div.innerHTML = `
+      <div class="pm-top">
+        <div class="pm-title">${data.title}</div>
+        <div class="pm-badge" style="${badgeStyle};font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:3px 7px;border-radius:2px">${badgeText}</div>
+      </div>
+      <div class="pm-pct" style="color:${pctColor}">${pct}%</div>
+      <div class="pm-outcome">YES PROBABILITY · ${market.category} · VOL ${vol}</div>
+      <div class="pm-bar-track">
+        <div class="pm-bar-fill" style="width:${pct}%;background:${market.color}"></div>
+      </div>
+      <div class="pm-vol" style="font-size:9px;color:var(--muted)">${market.why}</div>
+      <div class="pm-stress-contrib" style="color:${stressColor}">
+        STRESS CONTRIBUTION: ${stressSign} pts ${market.invert ? '(inverted — YES reduces stress)' : ''}
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+function computePMStressTotal() {
+  return PM_DATA.reduce((sum, { market, data }) => sum + computePMStressContrib(market, data), 0);
+}
+
+// Known-good slugs as of Feb 2026 — verified from polymarket.com URLs
+const KNOWN_SLUGS = [
+  'us-strikes-iran-by-end-of-2026',
+  'us-recession-by-end-of-2026',
+  'will-the-iranian-regime-fall-by-the-end-of-2026',
+  'russia-ukraine-ceasefire-by-june-2026',
+  'china-invades-taiwan-in-2026',
+  'will-the-us-officially-declare-war-on-iran-by',
+];
+
+async function loadPolymarket() {
+  PM_DATA = [];
+
+  // Strategy 1: Fetch top events dynamically by volume from geo/econ tags
+  let dynamicEvents = [];
+  try { dynamicEvents = await fetchTopPolymarketGeo(); } catch(e) {}
+
+  // Strategy 2: Fetch known slugs directly
+  const slugResults = await Promise.allSettled(
+    KNOWN_SLUGS.map(slug => fetchPolymarket(slug))
+  );
+  const slugData = slugResults
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value);
+
+  // Merge: dedupe by slug, classify each, keep top 6 by volume
+  const allEvents = [
+    ...dynamicEvents.map(e => parsePolymarketEvent(e)).filter(Boolean),
+    ...slugData,
+  ];
+  const seen = new Set();
+  const unique = allEvents.filter(e => {
+    if (!e || seen.has(e.slug)) return false;
+    seen.add(e.slug); return true;
+  });
+
+  // Classify and score
+  PM_DATA = unique
+    .map(data => {
+      const rule = classifyMarket(data.title);
+      if (!rule) return null;
+      return { market: rule, data };
+    })
+    .filter(Boolean)
+    .sort((a,b) => b.data.volume - a.data.volume)
+    .slice(0, 6);
+
+  renderPolymarket();
+}
+
+loadAll();
+loadPolymarket();
+setInterval(loadAll, 300000);
+setInterval(loadPolymarket, 300000);
+</script>
+</body>
+</html>
